@@ -1,3 +1,5 @@
+//Dirección del proyecto cd Documents/informatica2020/proyecto/proto
+
 #include <wiringPiI2C.h>
 #include <wiringPi.h>
 #include <stdlib.h>
@@ -45,191 +47,113 @@ float c;
 float *p_hum = &h;
 float *p_temp = &c;
 
-float read_dht_data(void)
-{
-	uint8_t laststate	= HIGH;
-	uint8_t counter		= 0;
-	uint8_t j			= 0, i;
-
-	data[0] = data[1] = data[2] = data[3] = data[4] = 0;
-
-	/* pull pin down for 18 milliseconds */
-	pinMode( DHT_PIN, OUTPUT );
-	digitalWrite( DHT_PIN, LOW );
-	delay( 18 );
-
-	/* prepare to read the pin */
-	pinMode( DHT_PIN, INPUT );
-
-	/* detect change and read data */
-	for ( i = 0; i < MAX_TIMINGS; i++ )
-	{
-		counter = 0;
-		while ( digitalRead( DHT_PIN ) == laststate )
-		{
-			counter++;
-			delayMicroseconds( 1 );
-			if ( counter == 255 )
-			{
-				break;
-			}
-		}
-		laststate = digitalRead( DHT_PIN );
-
-		if ( counter == 255 )
-			break;
-
-		/* ignore first 3 transitions */
-		if ( (i >= 4) && (i % 2 == 0) )
-		{
-			/* shove each bit into the storage bytes */
-			data[j / 8] <<= 1;
-			if ( counter > 50 )
-				data[j / 8] |= 1;
-			j++;
-		}
-	}
-
-	/*
-	 * check we read 40 bits (8bit x 5 ) + verify checksum in the last byte
-	 * print it out if data is good
-	 */
-	if ( (j >= 40) &&
-	     (data[4] == ( (data[0] + data[1] + data[2] + data[3]) & 0xFF) ) )
-	{
-		h = (float)((data[0] << 8) + data[1]) / 10;
-		if ( h > 100 )
-		{
-			h = data[0];	// for DHT11
-		}
-		c = (float)(((data[2] & 0x7F) << 8) + data[3]) / 10;
-		if ( c > 125 )
-		{
-			c = data[2];	// for DHT11
-		}
-		if ( data[2] & 0x80 )
-		{
-			c = -c;
-		}
-		float f = c * 1.8f + 32;
-		printf( "Humidity = %.1f %% Temperature = %.1f *C (%.1f *F)\n", h, c, f);
-	}else  {
-		printf( "Data not good, skip\n" );
-	}
-}
+float read_dht_data(void);
 
 ///////////////////////////////////////
 
 int main(void){
 
-if (wiringPiSetup () == -1) exit (1);
+	if (wiringPiSetup () == -1) exit (1);
 
-short flag = 1;
-pinMode(7, OUTPUT);	//Pin Led Verde (GPIO 7) [BCM-GPIO 04]
-pinMode(2, OUTPUT);     //Pin Led Amarillo (GPIO 0) [BCM-GPIO 17]
-pinMode(0, OUTPUT);     //Pin Led Rojo (GPIO 2) [BCM-GPIO 27]
-pinMode(1, INPUT);      //Pin del Pulsador (GPIO 1) [BCM-GPIO 18]
+	short flag = 1;
+	pinMode(7, OUTPUT);	//Pin Led Verde (GPIO 7) [BCM-GPIO 04]
+	pinMode(2, OUTPUT);     //Pin Led Amarillo (GPIO 0) [BCM-GPIO 17]
+	pinMode(0, OUTPUT);     //Pin Led Rojo (GPIO 2) [BCM-GPIO 27]
+	pinMode(1, INPUT);      //Pin del Pulsador (GPIO 1) [BCM-GPIO 18]
 
 
-fd = wiringPiI2CSetup(I2C_ADDR);
+	fd = wiringPiI2CSetup(I2C_ADDR);
 
-//printf("fd = %d ", fd);
+	//printf("fd = %d ", fd);
 
-lcd_init();		// Función de inicialización del LCD
-read_dht_data();	// Función de lectura del DHT22
-printf( "Inicio del programa proyecto final Parte A" );
-
-ClrLcd();
-lcdLoc(LINE2);
-typeln("Iniciando ...");
-lcdLoc(LINE1);
-typeln("Informatic 2020");
-delay(3000);
-
-while (flag == 1)   {
-
-/////////////// Evaluo el estado de mi Temperatura
-	if (*p_temp > 25.5){
-		printf("La temperatura ha superado el valor de 25.5°c.\n");
-		digitalWrite(0, HIGH);
-                digitalWrite(2, LOW);
-                digitalWrite(0, LOW);
-	}else {
-                digitalWrite(7, HIGH);
-                digitalWrite(2, LOW);
-                digitalWrite(0, LOW);
-        }
-
-/////////////// Evaluo el estado de mi Humedad
-	if (*p_hum > 50.5){
-		printf("La humedad relativa es elevebada.\n");
-		digitalWrite(2, HIGH);
-		digitalWrite(0, LOW);
-		digitalWrite(7, LOW);
-	} else {
-                digitalWrite(7, HIGH);
-                digitalWrite(2, LOW);
-                digitalWrite(0, LOW);
-	}
-
-    	read_dht_data();
-
+	lcd_init();		// Función de inicialización del LCD
+	read_dht_data();	// Función de lectura del DHT22
+	printf( "Inicio del programa proyecto final Parte A" );
 
 	ClrLcd();
-	lcdLoc(LINE1);
-	typeln("Temp:    ");
-	typeFloat(*p_temp);
-	typeln("*c");
 	lcdLoc(LINE2);
-	typeln("Humd:    ");
-	typeFloat(*p_hum);
-	typeln("%r");
-	delay(1000);
+	typeln("Iniciando ...");
+	lcdLoc(LINE1);
+	typeln("Informatic 2020");
+	delay(3000);
 
-	if (!digitalRead(1)){
-	        ClrLcd();
-	        lcdLoc(LINE1);
-	        typeln("Se presiono B1?");
-	        lcdLoc(LINE2);
-	        typeln("Me finalizas?");
-		delay(3000);
-		if (!digitalRead(1)) {
-		        ClrLcd();
-		        lcdLoc(LINE1);
-		        typeln("Guardando datos...");
-		        lcdLoc(LINE2);
-		        typeln("Close program.");
-			delay(1500);
-			flag = 0;
-			ClrLcd();
-	                digitalWrite(7, LOW);
-	                digitalWrite(2, LOW);
-	                digitalWrite(0, LOW);
+	while (flag == 1){
+
+	/////////////// Evaluo el estado de mi Temperatura
+		if ((*p_temp > 25.5)&&(*p_hum > 50.5)){
+			printf("La temperatura ha superado el valor de 25.5°c.\n");
+			digitalWrite(7, HIGH);
+			digitalWrite(2, HIGH);
+			digitalWrite(0, LOW);
+		}else if ((*p_temp > 25.5)||(*p_hum > 50.5)){
+			digitalWrite(7, LOW);
+			digitalWrite(2, LOW);
+			digitalWrite(0, HIGH);
+		} else {
+			digitalWrite(7, HIGH);
+			digitalWrite(2, LOW);
+			digitalWrite(0, LOW);
 		}
+
+
+		read_dht_data();
+
+
+		ClrLcd();
+		lcdLoc(LINE1);
+		typeln("Temp:    ");
+		typeFloat(*p_temp);
+		typeln("*c");
+		lcdLoc(LINE2);
+		typeln("Humd:    ");
+		typeFloat(*p_hum);
+		typeln("%r");
+		delay(1000);
+
+		if (!digitalRead(1)){
+				ClrLcd();
+				lcdLoc(LINE1);
+				typeln("Se presiono B1?");
+				lcdLoc(LINE2);
+				typeln("Me finalizas?");
+			delay(3000);
+			if (!digitalRead(1)) {
+					ClrLcd();
+					lcdLoc(LINE1);
+					typeln("Guardando datos...");
+					lcdLoc(LINE2);
+					typeln("Close program.");
+				delay(1500);
+				flag = 0;
+				ClrLcd();
+						digitalWrite(7, LOW);
+						digitalWrite(2, LOW);
+						digitalWrite(0, LOW);
+			}
+		}
+
+	/*
+		delay(2000);
+		ClrLcd();
+		lcdLoc(LINE1);
+		typeln(array1);
+
+		delay(2000);
+		ClrLcd(); // defaults LINE1
+		typeln("Int  ");
+		int value = 20125;
+		typeInt(value);
+
+		delay(2000);
+		lcdLoc(LINE2);
+		typeln("Float ");
+		float FloatVal = 10045.25989;
+		typeFloat(FloatVal);
+		delay(2000);
+	*/
 	}
 
-/*
-    delay(2000);
-    ClrLcd();
-    lcdLoc(LINE1);
-    typeln(array1);
-
-    delay(2000);
-    ClrLcd(); // defaults LINE1
-    typeln("Int  ");
-    int value = 20125;
-    typeInt(value);
-
-    delay(2000);
-    lcdLoc(LINE2);
-    typeln("Float ");
-    float FloatVal = 10045.25989;
-    typeFloat(FloatVal);
-    delay(2000);
-*/
-  }
-
-  return 0;
+	return 0;
 
 }
 
@@ -312,4 +236,76 @@ void lcd_init()   {
   lcd_byte(0x28, LCD_CMD); // Data length, number of lines, font size
   lcd_byte(0x01, LCD_CMD); // Clear display
   delayMicroseconds(500);
+}
+
+float read_dht_data(void){
+	uint8_t laststate	= HIGH;
+	uint8_t counter		= 0;
+	uint8_t j			= 0, i;
+
+	data[0] = data[1] = data[2] = data[3] = data[4] = 0;
+
+	/* pull pin down for 18 milliseconds */
+	pinMode( DHT_PIN, OUTPUT );
+	digitalWrite( DHT_PIN, LOW );
+	delay( 18 );
+
+	/* prepare to read the pin */
+	pinMode( DHT_PIN, INPUT );
+
+	/* detect change and read data */
+	for ( i = 0; i < MAX_TIMINGS; i++ )
+	{
+		counter = 0;
+		while ( digitalRead( DHT_PIN ) == laststate )
+		{
+			counter++;
+			delayMicroseconds( 1 );
+			if ( counter == 255 )
+			{
+				break;
+			}
+		}
+		laststate = digitalRead( DHT_PIN );
+
+		if ( counter == 255 )
+			break;
+
+		/* ignore first 3 transitions */
+		if ( (i >= 4) && (i % 2 == 0) )
+		{
+			/* shove each bit into the storage bytes */
+			data[j / 8] <<= 1;
+			if ( counter > 50 )
+				data[j / 8] |= 1;
+			j++;
+		}
+	}
+
+	/*
+	 * check we read 40 bits (8bit x 5 ) + verify checksum in the last byte
+	 * print it out if data is good
+	 */
+	if ( (j >= 40) &&
+	     (data[4] == ( (data[0] + data[1] + data[2] + data[3]) & 0xFF) ) )
+	{
+		h = (float)((data[0] << 8) + data[1]) / 10;
+		if ( h > 100 )
+		{
+			h = data[0];	// for DHT11
+		}
+		c = (float)(((data[2] & 0x7F) << 8) + data[3]) / 10;
+		if ( c > 125 )
+		{
+			c = data[2];	// for DHT11
+		}
+		if ( data[2] & 0x80 )
+		{
+			c = -c;
+		}
+		float f = c * 1.8f + 32;
+		printf( "Humidity = %.1f %% Temperature = %.1f *C (%.1f *F)\n", h, c, f);
+	}else  {
+		printf( "Data not good, skip\n" );
+	}
 }
