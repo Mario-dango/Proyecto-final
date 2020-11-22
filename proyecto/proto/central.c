@@ -3,6 +3,7 @@
 #include <wiringPiI2C.h>
 #include <wiringPi.h>
 #include <stdlib.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdint.h>
 
@@ -50,6 +51,20 @@ float *p_temp = &c;
 float read_dht_data(void);
 
 ///////////////////////////////////////
+struct registro{
+	float temp;
+	float hum;
+	char date[9];
+}datos[28];
+typedef struct registro dato;
+
+
+///////////////////////////////////////
+void prom (registro dato, int index);
+void dev (float a, float b, int index);
+float moda (float a, float b, int index);
+
+
 
 int main(void){
 
@@ -67,7 +82,6 @@ int main(void){
 	//printf("fd = %d ", fd);
 
 	lcd_init();		// Función de inicialización del LCD
-	read_dht_data();	// Función de lectura del DHT22
 	printf( "Inicio del programa proyecto final Parte A" );
 
 	ClrLcd();
@@ -77,18 +91,19 @@ int main(void){
 	typeln("Informatic 2020");
 	delay(3000);
 
-	while (flag == 1){
+	while (flag == 1){							//Condición ciclica del programa
+		for (int j = 0; j < 28; j++){			//for para guardar datos en la matriz
 
-	/////////////// Evaluo el estado de mi Temperatura
-		if ((*p_temp > 25.5)&&(*p_hum > 50.5)){
+	/************************** Evaluo el estado de mi Temperatura*/
+		if ((*p_temp >= 25.5)&&(*p_hum >= 50.5)){
 			printf("La temperatura ha superado el valor de 25.5°c.\n");
-			digitalWrite(7, HIGH);
-			digitalWrite(2, HIGH);
-			digitalWrite(0, LOW);
-		}else if ((*p_temp > 25.5)||(*p_hum > 50.5)){
 			digitalWrite(7, LOW);
 			digitalWrite(2, LOW);
 			digitalWrite(0, HIGH);
+		}else if ((*p_temp >= 25.5)||(*p_hum >= 50.5)){
+			digitalWrite(7, LOW);
+			digitalWrite(2, HIGH);
+			digitalWrite(0, LOW);
 		} else {
 			digitalWrite(7, HIGH);
 			digitalWrite(2, LOW);
@@ -96,10 +111,10 @@ int main(void){
 		}
 
 
-		read_dht_data();
+		read_dht_data(); 	 // Función de lectura del DHT22
 
 
-		ClrLcd();
+		//ClrLcd();
 		lcdLoc(LINE1);
 		typeln("Temp:    ");
 		typeFloat(*p_temp);
@@ -108,29 +123,44 @@ int main(void){
 		typeln("Humd:    ");
 		typeFloat(*p_hum);
 		typeln("%r");
-		delay(1000);
+		delay(200);
 
 		if (!digitalRead(1)){
+			ClrLcd();
+			lcdLoc(LINE1);
+			typeln("Se presiono B1?");
+			lcdLoc(LINE2);
+			typeln("Me finalizas?");
+			delay(3000);
+
+			if (!digitalRead(1)) {
 				ClrLcd();
 				lcdLoc(LINE1);
-				typeln("Se presiono B1?");
+				typeln("Guardando datos...");
 				lcdLoc(LINE2);
-				typeln("Me finalizas?");
-			delay(3000);
-			if (!digitalRead(1)) {
-					ClrLcd();
-					lcdLoc(LINE1);
-					typeln("Guardando datos...");
-					lcdLoc(LINE2);
-					typeln("Close program.");
+				typeln("Close program.");
 				delay(1500);
-				flag = 0;
+				flag = 0;				//condición para salir del while
+				j = 28;					//condición para salir del for
 				ClrLcd();
-						digitalWrite(7, LOW);
-						digitalWrite(2, LOW);
-						digitalWrite(0, LOW);
+				digitalWrite(7, LOW);
+				digitalWrite(2, LOW);
+				digitalWrite(0, LOW);
 			}
+		}	
+
+		/**************************Asignación de valores en matriz datos*/
+        time_t tiempo = time(0);
+        struct tm *tlocal = localtime(&tiempo);
+        char fecha[9];
+        strftime(fecha,9,"%H:%M:%S",tlocal);
+		datos[j].temp = *p_temp;
+		datos[j].hum = *p_hum;
+		for (int i = 0; i < 9; i++){
+			datos[j].date[i] = fecha[i];
 		}
+			
+		
 
 	/*
 		delay(2000);
@@ -152,10 +182,51 @@ int main(void){
 		delay(2000);
 	*/
 	}
+	}
 
 	return 0;
 
 }
+
+/*************** Funciones Estadisticas******/
+void prom (registro dato, int index){
+	float promedio;
+	float sum;
+	for (int i = 0; i < index; i++){
+		sum += datos[i].temp;
+	}
+	promedio = sum / index;
+	return (promedio);
+}
+float dev(float a, float b, int index){
+	//asdasdasd
+}
+float moda(float a, float b, int index){	
+	float moda;
+	int aux0, aux1;
+	for (int j = 0; j < index; j++)
+	{
+		aux1 = 0;
+		for (int i = 0; i < index; i++){
+			if ((datos[i].temp == datos[j].temp) && (i != j)){
+				aux1++;
+			}
+		}
+		if ((aux1 > 0) && (aux1 > aux0))
+		{
+			aux0 = aux1;
+			moda = datos[j].temp;
+		} /*else if ((aux1 == aux0) && (aux0 > 0))
+		{
+			//hay dos valores modales
+
+		}*/
+		
+		
+	}	
+	return moda;
+}
+
 
 
 // float to string
