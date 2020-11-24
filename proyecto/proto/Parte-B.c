@@ -37,52 +37,51 @@ void typeChar(char val);
 int fd;  // seen by all subroutines
 ///////////////////////////////////////
 
-/////////////// DHT11  ////////////////
 
-#define MAX_TIMINGS	85
-#define DHT_PIN		3	/* GPIO-22 */
- 
-int data[5] = { 0, 0, 0, 0, 0 };
-float h;
-float c;
-float *p_hum = &h;
-float *p_temp = &c;
-
-float read_dht_data(void);
-
-///////////////////////////////////////
-struct REGISTRO 
+typedef struct  
 {
+	int ciclo;
 	float temp;
 	float hum;
-	char date[9]
-}datos[28];
-typedef struct REGISTRO registro;
+	char *fecha;
+}REGISTRO;
 
-///////////////////////////////////////
+REGISTRO *datos;
+
+/*///////////////////////////////////////
 float prom (registro datos, int index);
 float dev (registro datos , int index);
 float var (registro datos , int index);
 float moda (registro datos , int index);
+*/
+
+
+int lectura(FILE *flujo);
+void copiar (char cadena[], int i);
+void vaciar (char cadena[]);
+void valores_LCD();
 
 
 int main(void){
 
+	char temp[100];
+	int cont;
+	FILE *flujo;
+	lectura(flujo);
+
+
 	if (wiringPiSetup () == -1) exit (1);
 
 	short flag = 1;
-	pinMode(7, OUTPUT);	//Pin Led Verde (GPIO 7) [BCM-GPIO 04]
+	pinMode(7, OUTPUT);		//Pin Led Verde (GPIO 7) [BCM-GPIO 04]
 	pinMode(2, OUTPUT);     //Pin Led Amarillo (GPIO 0) [BCM-GPIO 17]
 	pinMode(0, OUTPUT);     //Pin Led Rojo (GPIO 2) [BCM-GPIO 27]
 	pinMode(1, INPUT);      //Pin del Pulsador (GPIO 1) [BCM-GPIO 18]
 
-
 	fd = wiringPiI2CSetup(I2C_ADDR);
 
-	//printf("fd = %d ", fd);
-
 	lcd_init();		// Función de inicialización del LCD
-	printf( "Inicio del programa proyecto final Parte A" );
+	printf( "Inicio del programa proyecto final Parte B" );
 
 	ClrLcd();
 	lcdLoc(LINE2);
@@ -95,99 +94,125 @@ int main(void){
 		for (int j = 0; j < 28; j++){			//for para guardar datos en la matriz
 
 	/************************** Evaluo el estado de mi Temperatura*/
-		if ((*p_temp >= 25.5)&&(*p_hum >= 50.5)){
-			printf("La temperatura ha superado el valor de 25.5°c.\n");
-			digitalWrite(7, LOW);
-			digitalWrite(2, LOW);
-			digitalWrite(0, HIGH);
-		}else if ((*p_temp >= 25.5)||(*p_hum >= 50.5)){
-			digitalWrite(7, LOW);
-			digitalWrite(2, HIGH);
-			digitalWrite(0, LOW);
-		} else {
-			digitalWrite(7, HIGH);
-			digitalWrite(2, LOW);
-			digitalWrite(0, LOW);
-		}
 
-
-		read_dht_data(); 	 // Función de lectura del DHT22
-
-		//ClrLcd();
-		lcdLoc(LINE1);
-		typeln("Temp:    ");
-		typeFloat(*p_temp);
-		typeln("*c");
-		lcdLoc(LINE2);
-		typeln("Humd:    ");
-		typeFloat(*p_hum);
-		typeln("%r");
-		delay(200);
-
-		if (!digitalRead(1)){
-			ClrLcd();
-			lcdLoc(LINE1);
-			typeln("Se presiono B1?");
-			lcdLoc(LINE2);
-			typeln("Me finalizas?");
-			delay(3000);
-
-			if (!digitalRead(1)) {
-				ClrLcd();
-				lcdLoc(LINE1);
-				typeln("Guardando datos...");
-				lcdLoc(LINE2);
-				typeln("Close program.");
-				delay(1500);
-				flag = 0;				//condición para salir del while
-				j = 28;					//condición para salir del for
-				ClrLcd();
-				digitalWrite(7, LOW);
-				digitalWrite(2, LOW);
-				digitalWrite(0, LOW);
-			}
-		}	
-
-		/**************************Asignación de valores en matriz datos*/
-        time_t tiempo = time(0);
-        struct tm *tlocal = localtime(&tiempo);
-        char fecha[9];
-        strftime(fecha,9,"%H:%M:%S",tlocal);
-		datos[j].temp = *p_temp;
-		datos[j].hum = *p_hum;
-		for (int i = 0; i < 9; i++){
-			datos[j].date[i] = fecha[i];
-		}
+		valores_LCD(&flag, j);
 			
-		
-
-	/*
-		delay(2000);
-		ClrLcd();
-		lcdLoc(LINE1);
-		typeln(array1);
-
-		delay(2000);
-		ClrLcd(); // defaults LINE1
-		typeln("Int  ");
-		int value = 20125;
-		typeInt(value);
-
-		delay(2000);
-		lcdLoc(LINE2);
-		typeln("Float ");
-		float FloatVal = 10045.25989;
-		typeFloat(FloatVal);
-		delay(2000);
-	*/
-	}
+		}
 	}
 
 	return 0;
 
 }
 
+
+/*************** Funciones de fichero******/
+
+int lectura(FILE *flujo){
+
+	char temp[100], auxiliar;
+	int cont = 0;
+	flujo = fopen("archivo.txt", "r");
+	if (flujo == NULL){
+		printf("No se ha podido abrir el fichero");
+		return 1;
+	}
+
+	flujo = fopen("archivo.txt", "r");
+	
+	while (!feof(flujo))
+	{
+		fgets(temp, 100, flujo);
+	}
+	rewind(flujo);             //coloca el cursor del archivo que se encuentra en una posición x, al inicio del archivo
+	
+	datos = (REGISTRO*)malloc(cont*sizeof(REGISTRO));
+
+	for (int i = 0; !feof(flujo); i++)
+	{
+		vaciar(temp);
+		auxiliar = '0';
+		for (int j = 0; (auxiliar != '|'); j++)
+		{
+			auxiliar = fgetc(flujo);
+			if (auxiliar != '|')
+			{
+				temp[j] = auxiliar;
+			} /*else if ((auxiliar == '=') && (auxiliar == ')') && (auxiliar == '('))
+			{
+				printf("%c", auxiliar);
+			}*/
+						
+		}
+		copiar(temp,i);		
+
+		fgets(temp, 100, flujo);
+		datos[i].ciclo = atoi(temp);
+
+	}
+	fclose(flujo);
+}
+
+
+
+void copiar (char cadena[], int i){
+	int N = strlen(cadena) + 1;
+	datos[i].fecha = (REGISTRO*)malloc(N*sizeof(char));
+	if (datos[i].fecha == NULL)
+	{
+		printf("No se ha podido reservar memoria. \n");
+		exit(1);
+	}
+	strcpy(datos[i].temp, cadena);     //función para copiar strings (char destino, char fuente)
+	return;	
+}
+
+void vaciar (char cadena[]){
+	for (int i = 0; i < 100; i++)
+	{
+		cadena[i] = '\0';
+	}
+	return;	
+}
+
+void valores_LCD(int *flag, int j){
+	//ClrLcd();
+	lcdLoc(LINE1);
+	typeln("Temp:    ");
+	typeFloat(datos[j].temp);
+	typeln("*c");
+	lcdLoc(LINE2);
+	typeln("Humd:    ");
+	typeFloat(datos[j].hum);
+	typeln("%r");
+	delay(200);
+
+	if (!digitalRead(1)){
+		ClrLcd();
+		lcdLoc(LINE1);
+		typeln("Se presiono B1?");
+		lcdLoc(LINE2);
+		typeln("Me finalizas?");
+		delay(3000);
+
+		if (!digitalRead(1)) {
+			ClrLcd();
+			lcdLoc(LINE1);
+			typeln("Guardando datos...");
+			lcdLoc(LINE2);
+			typeln("Close program.");
+			delay(1500);
+			flag = 0;				//condición para salir del while
+			j = 28;					//condición para salir del for
+			ClrLcd();
+			digitalWrite(7, LOW);
+			digitalWrite(2, LOW);
+			digitalWrite(0, LOW);
+		}
+	}	
+}
+
 /*************** Funciones Estadisticas******/
+/*
 float prom (registro datos, int index){
 	float promedio;
 	float sum;
@@ -220,12 +245,14 @@ float moda (registro datos , int index){
 		{
 			//hay dos valores modales
 
-		}*/
+		}
 	}	
 	return moda;
 }
+*/
 
 
+/*************** Funciones del LCD 16x02******/
 
 // float to string
 void typeFloat(float myFloat)   {
@@ -305,76 +332,4 @@ void lcd_init()   {
   lcd_byte(0x28, LCD_CMD); // Data length, number of lines, font size
   lcd_byte(0x01, LCD_CMD); // Clear display
   delayMicroseconds(500);
-}
-
-float read_dht_data(void){
-	uint8_t laststate	= HIGH;
-	uint8_t counter		= 0;
-	uint8_t j			= 0, i;
-
-	data[0] = data[1] = data[2] = data[3] = data[4] = 0;
-
-	/* pull pin down for 18 milliseconds */
-	pinMode( DHT_PIN, OUTPUT );
-	digitalWrite( DHT_PIN, LOW );
-	delay( 18 );
-
-	/* prepare to read the pin */
-	pinMode( DHT_PIN, INPUT );
-
-	/* detect change and read data */
-	for ( i = 0; i < MAX_TIMINGS; i++ )
-	{
-		counter = 0;
-		while ( digitalRead( DHT_PIN ) == laststate )
-		{
-			counter++;
-			delayMicroseconds( 1 );
-			if ( counter == 255 )
-			{
-				break;
-			}
-		}
-		laststate = digitalRead( DHT_PIN );
-
-		if ( counter == 255 )
-			break;
-
-		/* ignore first 3 transitions */
-		if ( (i >= 4) && (i % 2 == 0) )
-		{
-			/* shove each bit into the storage bytes */
-			data[j / 8] <<= 1;
-			if ( counter > 50 )
-				data[j / 8] |= 1;
-			j++;
-		}
-	}
-
-	/*
-	 * check we read 40 bits (8bit x 5 ) + verify checksum in the last byte
-	 * print it out if data is good
-	 */
-	if ( (j >= 40) &&
-	     (data[4] == ( (data[0] + data[1] + data[2] + data[3]) & 0xFF) ) )
-	{
-		h = (float)((data[0] << 8) + data[1]) / 10;
-		if ( h > 100 )
-		{
-			h = data[0];	// for DHT11
-		}
-		c = (float)(((data[2] & 0x7F) << 8) + data[3]) / 10;
-		if ( c > 125 )
-		{
-			c = data[2];	// for DHT11
-		}
-		if ( data[2] & 0x80 )
-		{
-			c = -c;
-		}
-		float f = c * 1.8f + 32;
-		printf( "Humidity = %.1f %% Temperature = %.1f *C (%.1f *F)\n", h, c, f);
-	}else  {
-		printf( "Data not good, skip\n" );
-	}
 }

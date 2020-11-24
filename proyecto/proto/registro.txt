@@ -1,0 +1,6 @@
+Registro de los datos tomados por la estación
+*****************************************************************************/
+temperatura en grados Celsius:  25.5   25.8
+humedad relativa porcentual:   41.20   45.20
+número de ciclo realizado:       1       2     
+
