@@ -19,7 +19,7 @@
 
 #define LINE1  0x80 // 1st line
 #define LINE2  0xC0 // 2nd line
-
+	
 #define LCD_BACKLIGHT   0x08  // On
 // LCD_BACKLIGHT = 0x00  # Off
 
