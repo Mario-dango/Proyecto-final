@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#define linea 53
+
 /////////////// LCD i2c  ////////////////
 // Define some device parameters
 #define I2C_ADDR   0x27 // I2C device address
@@ -51,26 +53,36 @@ float *p_temp = &c;
 float read_dht_data(void);
 
 ///////////////////////////////////////
-struct REGISTRO 
+typedef struct  
 {
+	int ciclo;
 	float temp;
 	float hum;
-	char date[9]
-}datos[28];
-typedef struct REGISTRO registro;
+	char *fecha;
+}REGISTRO;
+
+REGISTRO *datos;
 
 ///////////////////////////////////////
-float prom (registro datos, int index);
-float dev (registro datos , int index);
-float var (registro datos , int index);
-float moda (registro datos , int index);
+float prom (REGISTRO datos, int index);
+float dev (REGISTRO datos , int index);
+float var (REGISTRO datos , int index);
+float moda (REGISTRO datos , int index);
+
+int lectura(FILE *flujo);
+int escritura(FILE *flujo, int indice);
+void evaluar ();
+void vaciar (char cadena[], int tam);
+void cargar (char cadena[], int index);
+void cargarFecha (char cadena[], int i);
+void tomarfecha (char *cadena[]);
+void valores_LCD();
 
 
 int main(void){
 
 	if (wiringPiSetup () == -1) exit (1);
 
-	short flag = 1;
 	pinMode(7, OUTPUT);	//Pin Led Verde (GPIO 7) [BCM-GPIO 04]
 	pinMode(2, OUTPUT);     //Pin Led Amarillo (GPIO 0) [BCM-GPIO 17]
 	pinMode(0, OUTPUT);     //Pin Led Rojo (GPIO 2) [BCM-GPIO 27]
@@ -86,145 +98,261 @@ int main(void){
 
 	ClrLcd();
 	lcdLoc(LINE2);
-	typeln("Iniciando ...");
+	typeln("projt integrador");
 	lcdLoc(LINE1);
 	typeln("Informatic 2020");
 	delay(3000);
 
+	printf("\nPor favor presionar el boton de la estacion para comenzar a registrar datos.");
+	ClrLcd();
+	lcdLoc(LINE2);
+	typeln("Presionar para");
+	lcdLoc(LINE1);
+	typeln("inicializar");
+	while (digitalRead(1))
+	ClrLcd();
+
+	int cont, indice;
+	float temp_prom, humd_prom;
+	char tiempo;
+  	clock_t t_ini, t_fin;  
+	double secs, t_ciclo;
+	FILE *p_flujo1, *p_flujo2;
+	datos = (REGISTRO*)malloc(cont*sizeof(REGISTRO));
+	int flag = lectura(p_flujo1);
+	int F_cont = escritura(p_flujo2, flag);	
+
+	t_ini = clock();	
 	while (flag == 1){							//Condición ciclica del programa
-		for (int j = 0; j < 28; j++){			//for para guardar datos en la matriz
-
+		t_fin = clock();
 	/************************** Evaluo el estado de mi Temperatura*/
-		if ((*p_temp >= 25.5)&&(*p_hum >= 50.5)){
-			printf("La temperatura ha superado el valor de 25.5°c.\n");
-			digitalWrite(7, LOW);
-			digitalWrite(2, LOW);
-			digitalWrite(0, HIGH);
-		}else if ((*p_temp >= 25.5)||(*p_hum >= 50.5)){
-			digitalWrite(7, LOW);
-			digitalWrite(2, HIGH);
-			digitalWrite(0, LOW);
-		} else {
-			digitalWrite(7, HIGH);
-			digitalWrite(2, LOW);
-			digitalWrite(0, LOW);
-		}
-
-
+		evaluar();
 		read_dht_data(); 	 // Función de lectura del DHT22
 
-		//ClrLcd();
-		lcdLoc(LINE1);
-		typeln("Temp:    ");
-		typeFloat(*p_temp);
-		typeln("*c");
-		lcdLoc(LINE2);
-		typeln("Humd:    ");
-		typeFloat(*p_hum);
-		typeln("%r");
-		delay(200);
-
 		if (!digitalRead(1)){
+			t_ini = clock();
 			ClrLcd();
 			lcdLoc(LINE1);
 			typeln("Se presiono B1?");
 			lcdLoc(LINE2);
 			typeln("Me finalizas?");
-			delay(3000);
-
-			if (!digitalRead(1)) {
+			while (digitalRead(1))
+			t_fin = clock();				
+			secs = (double)(t_fin - t_ini) / CLOCKS_PER_SEC;
+			if (secs <= 2.5)
+			{
 				ClrLcd();
 				lcdLoc(LINE1);
 				typeln("Guardando datos...");
 				lcdLoc(LINE2);
 				typeln("Close program.");
-				delay(1500);
+				delay(200);
+				
+				datos[indice].temp = *p_temp;
+				datos[indice].hum = *p_hum;
+				tomarfecha(tiempo);
+				cargarFecha(tiempo, indice);
+
 				flag = 0;				//condición para salir del while
-				j = 28;					//condición para salir del for
 				ClrLcd();
 				digitalWrite(7, LOW);
 				digitalWrite(2, LOW);
 				digitalWrite(0, LOW);
+			} else if (secs > 10)
+			{
+				t_ciclo = 10;
+			} else
+			{
+				t_ciclo = secs;
+				secs = 0;
 			}
 		}	
 
 		/**************************Asignación de valores en matriz datos*/
-        time_t tiempo = time(0);
-        struct tm *tlocal = localtime(&tiempo);
-        char fecha[9];
-        strftime(fecha,9,"%H:%M:%S",tlocal);
-		datos[j].temp = *p_temp;
-		datos[j].hum = *p_hum;
-		for (int i = 0; i < 9; i++){
-			datos[j].date[i] = fecha[i];
-		}
+		if ((t_ini - t_fin) >= t_ciclo)
+		{	
+			while ((*p_temp == 0) && (*p_hum == 0))
+			{
+				read_dht_data(); 	 // Función de lectura del DHT22
+			}
 			
-		
-
-	/*
-		delay(2000);
-		ClrLcd();
-		lcdLoc(LINE1);
-		typeln(array1);
-
-		delay(2000);
-		ClrLcd(); // defaults LINE1
-		typeln("Int  ");
-		int value = 20125;
-		typeInt(value);
-
-		delay(2000);
-		lcdLoc(LINE2);
-		typeln("Float ");
-		float FloatVal = 10045.25989;
-		typeFloat(FloatVal);
-		delay(2000);
-	*/
+			datos[indice].temp = *p_temp;
+			datos[indice].hum = *p_hum;
+			tomarfecha(tiempo);
+			cargarFecha(tiempo, indice);
+			indice ++;
+			escritura(p_flujo2, indice);
+			//temp_prom = promedio(&p_temp);	
+			/*****LCD****/		
+			ClrLcd();
+			lcdLoc(LINE1);
+			typeln("Temp:    ");
+			typeFloat(*p_temp);
+			typeln("*c");
+			lcdLoc(LINE2);
+			typeln("Humd:    ");
+			typeFloat(*p_hum);
+			typeln("%r");
+			/*****PRINTF****/	
+			printf("\nLa temperatura actual es de %4.2f y en promedio hasta el momento es de %4.f", datos[indice].temp, temp_prom);
+			printf("\nLa humedad relativa actual es de %4.2f y en promedio hasta el momento es de %4.f", datos[indice].hum, humd_prom);	
+			
+			if (indice == 28){
+				printf("\n\nSe han registrado 28 lecturas correctamente.");
+				printf("\nSi desea registrar otras 28 lecturas mantenga presionado el botón por 5 segundos");
+				printf("\nCaso contrario para finalizar sueltelo antes.");
+				while (digitalRead(1))
+				t_ini = clock();
+				while (!digitalRead(1))
+				t_fin = clock();				
+				secs = (double)(t_fin - t_ini) / CLOCKS_PER_SEC;
+				if (secs >= 5)
+				{
+					printf("\nHa de proceder a relizar un nuevo bloque de registro.");
+					temp_prom = 0;
+					humd_prom = 0;
+					indice = 0;
+				} else if (secs < 5)
+				{
+					printf("\nSe ha de finalizar el programa, gracias por usarlo.");
+					flag = 0;
+				} else
+				{
+					printf("\n\nHa ocurrido un problema en el conteo, se procede a cerrar el programa.");
+					flag = 0;
+				}
+			}
+		}			
 	}
-	}
-
 	return 0;
+}
 
+/*************** Funciones de Ficheros******/
+int lectura(FILE *flujo){
+
+	char auxiliar;
+	flujo = fopen("archivo.txt", "r");
+	if (flujo == NULL){
+		printf("No se ha podido abrir el fichero");
+		exit(1);
+	}
+
+	while (auxiliar != '\n')
+	{
+		auxiliar = fgetc(flujo);
+		if ((auxiliar == '=') && (auxiliar == '*'))				//reviso si está el titulo escrito
+		{
+			fclose(flujo);	
+			return 1;
+		}		
+	}
+	fclose(flujo);	
+	return 0;
+}
+
+int escritura(FILE *flujo, int indice){
+
+	char temp[linea], auxiliar;
+	flujo = fopen("archivo.txt", "a");
+	if (flujo == NULL){
+		printf("No se ha podido abrir el fichero");
+		return 1;
+	}
+	if (indice == 0)
+	{
+		fputc('(', flujo);
+		for (int i = 0; i < (linea-3); i++)
+		{
+			fputc('=', flujo);
+		}
+		fputc(')\n', flujo);
+		fprintf(flujo, "TRABAJO INTEGRADOR INFORMATICA 2020, INTEGRANTES:\n");
+		fprintf(flujo, "*Mario Papetti 11807\n");
+		fprintf(flujo, "*Augusto Caceres 11820\n");
+		fprintf(flujo, "*Miled Felicito 11901\n");
+		fprintf(flujo, "*Franco Siccatto 12225\n");
+		fputc('(', flujo);
+		for (int i = 0; i < (linea-3); i++)
+		{
+			fputc('=', flujo);
+		}
+		fputc(')\n', flujo);
+	} else if (indice == 1)
+	{	
+		if (indice == 0)
+		{
+			fputc('\n(', flujo);
+			for (int i = 0; i < (linea-3); i++)
+			{
+				fputc('#', flujo);
+			}
+			fputc(')\n', flujo);
+			fprintf(flujo, "Registro iniciado en la fecha: ");
+			tomarfecha(&auxiliar);
+			fprintf(flujo, auxiliar);
+			fputc('\n', flujo);
+			vaciar(auxiliar, linea);
+			fprintf(flujo, "(ciclo)|(temperatura)|(humedad)|      (fecha)\n");
+		}
+		fprintf(flujo, "   %i.  |     %3.1f    |  %3.1f   | %s", datos[indice].ciclo, datos[indice].temp, datos[indice].hum, datos[indice].fecha);
+	} else 
+	{
+		fprintf(flujo, "   %i.  |     %3.1f    |  %3.1f   | %s", datos[indice].ciclo, datos[indice].temp, datos[indice].hum, datos[indice].fecha);
+	}
+	fclose(flujo);	
+	return;
+}
+
+void vaciar (char cadena[], int tam){
+	for (int i = 0; i < tam; i++)
+	{
+		cadena[i] = '\0';
+	}
+	return;	
+}
+
+void tomarfecha (char *cadena[]){	
+	time_t tiempo;
+	struct tm *tlocal;
+
+	tiempo = time(NULL);
+	tlocal = localtime(&tiempo);
+	strftime(cadena, linea, "%d/%m/%Y %H:%M:%S", tlocal);
+	return;
 }
 
 /*************** Funciones Estadisticas******/
-float prom (registro datos, int index){
-	float promedio;
-	float sum;
-	for (int i = 0; i < index; i++){
-		sum += datos[i].temp;
-	}
-	promedio = sum / index;
-	return (promedio);
-}
 
-float dev (registro datos , int index){
-	//asdasdasd
-}
-float moda (registro datos , int index){	
-	float moda;
-	int aux0, aux1;
-	for (int j = 0; j < index; j++)
+
+
+void cargarFecha (char cadena[], int i){
+	int N = strlen(cadena) + 1;						//tamaño de caracteres + el '\n'
+	datos[i].fecha = (REGISTRO*)malloc(N*sizeof(char));
+	if (datos[i].fecha == NULL)
 	{
-		aux1 = 0;
-		for (int i = 0; i < index; i++){
-			if ((datos[i].temp == datos[j].temp) && (i != j)){
-				aux1++;
-			}
-		}
-		if ((aux1 > 0) && (aux1 > aux0))
-		{
-			aux0 = aux1;
-			moda = datos[j].temp;
-		} /*else if ((aux1 == aux0) && (aux0 > 0))
-		{
-			//hay dos valores modales
-
-		}*/
-	}	
-	return moda;
+		printf("No se ha podido reservar memoria. \n");
+		exit(1);
+	}
+	strcpy(datos[i].fecha, cadena);     //función para copiar strings (char destino, char fuente)
+	return;	
 }
 
+void evaluar (){	
+	if ((*p_temp >= 25.5)&&(*p_hum >= 50.5)){
+		printf("La temperatura ha superado el valor de 25.5°c.\n");
+		digitalWrite(7, LOW);
+		digitalWrite(2, LOW);
+		digitalWrite(0, HIGH);
+	}else if ((*p_temp >= 25.5)||(*p_hum >= 50.5)){
+		digitalWrite(7, LOW);
+		digitalWrite(2, HIGH);
+		digitalWrite(0, LOW);
+	} else {
+		digitalWrite(7, HIGH);
+		digitalWrite(2, LOW);
+		digitalWrite(0, LOW);
+	}
+}
 
 
 // float to string
@@ -373,8 +501,9 @@ float read_dht_data(void){
 			c = -c;
 		}
 		float f = c * 1.8f + 32;
-		printf( "Humidity = %.1f %% Temperature = %.1f *C (%.1f *F)\n", h, c, f);
+		//printf( "Humidity = %.1f %% Temperature = %.1f *C (%.1f *F)\n", h, c, f);
 	}else  {
-		printf( "Data not good, skip\n" );
+		c = 0; h = 0;
+		//printf( "Data not good, skip\n" );
 	}
 }

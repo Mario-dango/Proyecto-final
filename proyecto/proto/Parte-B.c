@@ -38,6 +38,8 @@ int fd;  // seen by all subroutines
 ///////////////////////////////////////
 
 
+#define linea 53
+
 typedef struct  
 {
 	int ciclo;
@@ -58,20 +60,19 @@ float moda (registro datos , int index);
 
 int lectura(FILE *flujo);
 void copiar (char cadena[], int i);
-void vaciar (char cadena[]);
+void vaciar (char cadena[], int tam);
+void cargar (char cadena[], int index);
 void valores_LCD();
 
 
 int main(void){
 
-	char temp[100];
 	int cont;
-	FILE *flujo;
-	lectura(flujo);
-
+	FILE *p_flujo;	
+	datos = (REGISTRO*)malloc(cont*sizeof(REGISTRO));
+	lectura(p_flujo);
 
 	if (wiringPiSetup () == -1) exit (1);
-
 	short flag = 1;
 	pinMode(7, OUTPUT);		//Pin Led Verde (GPIO 7) [BCM-GPIO 04]
 	pinMode(2, OUTPUT);     //Pin Led Amarillo (GPIO 0) [BCM-GPIO 17]
@@ -95,13 +96,10 @@ int main(void){
 
 	/************************** Evaluo el estado de mi Temperatura*/
 
-		valores_LCD(&flag, j);
-			
+		valores_LCD(&flag, j);			
 		}
 	}
-
 	return 0;
-
 }
 
 
@@ -109,8 +107,8 @@ int main(void){
 
 int lectura(FILE *flujo){
 
-	char temp[100], auxiliar;
-	int cont = 0;
+	char temp[linea], auxiliar;
+	int cont = 0, i = 0, indice = -12;
 	flujo = fopen("archivo.txt", "r");
 	if (flujo == NULL){
 		printf("No se ha podido abrir el fichero");
@@ -118,41 +116,65 @@ int lectura(FILE *flujo){
 	}
 
 	flujo = fopen("archivo.txt", "r");
-	
-	while (!feof(flujo))
+	vaciar(temp, linea);
+	while (auxiliar != ']')
 	{
-		fgets(temp, 100, flujo);
-	}
-	rewind(flujo);             //coloca el cursor del archivo que se encuentra en una posición x, al inicio del archivo
-	
-	datos = (REGISTRO*)malloc(cont*sizeof(REGISTRO));
-
-	for (int i = 0; !feof(flujo); i++)
-	{
-		vaciar(temp);
-		auxiliar = '0';
-		for (int j = 0; (auxiliar != '|'); j++)
+		while (auxiliar != '\n')
 		{
+			temp[i] = auxiliar;
+			printf("%c", auxiliar);
 			auxiliar = fgetc(flujo);
-			if (auxiliar != '|')
-			{
-				temp[j] = auxiliar;
-			} /*else if ((auxiliar == '=') && (auxiliar == ')') && (auxiliar == '('))
-			{
-				printf("%c", auxiliar);
-			}*/
-						
+			i ++;
 		}
-		copiar(temp,i);		
-
-		fgets(temp, 100, flujo);
-		datos[i].ciclo = atoi(temp);
-
-	}
+		indice ++;
+		cargar(temp, indice);
+		printf("\n");
+		i = 0;
+		auxiliar = fgetc(flujo);
+	}	
+		printf("fin de lectura");
 	fclose(flujo);
+	return;
 }
 
-
+void cargar (char cadena[], int index){	
+	int cont = 0;
+	char auxiliar[20];
+	if ((index >=0) && (cadena[linea-1] != ']'))
+	{
+		for (int i = 0; i < linea; i++)
+		{	
+			if ((cadena[i] == '.') && (cont == 0)){
+				datos[index].ciclo = index;
+				cont ++;			
+			} else if ((cadena[i] == '.') && (cont == 1)){
+				auxiliar[0] = cadena[i-2]; 
+				auxiliar[1] = cadena[i-1]; 
+				auxiliar[2] = cadena[i]; 
+				auxiliar[3] = cadena[i+1]; 
+				datos[index].temp = strtod(auxiliar, NULL);			//convierto y almaceno
+				vaciar(auxiliar, 4);
+				cont ++;
+			} else if ((cadena[i] == '.') && (cont == 2)){
+				auxiliar[0] = cadena[i-2]; 
+				auxiliar[1] = cadena[i-1]; 
+				auxiliar[2] = cadena[i]; 
+				auxiliar[3] = cadena[i+1]; 
+				datos[index].hum = strtod(auxiliar, NULL);		//convierto y almaceno
+				vaciar(auxiliar, 4);
+				cont ++;
+			} else if ((cadena[i] == ':') && (cont == 3)){
+				for (int j = 0; j < 19; j++)
+				{
+					auxiliar[j] = cadena[33+j];
+				}
+				copiar(auxiliar, index);
+				vaciar(auxiliar, 19);
+				cont = 0;
+			}
+		}
+	}
+}
 
 void copiar (char cadena[], int i){
 	int N = strlen(cadena) + 1;
@@ -162,12 +184,12 @@ void copiar (char cadena[], int i){
 		printf("No se ha podido reservar memoria. \n");
 		exit(1);
 	}
-	strcpy(datos[i].temp, cadena);     //función para copiar strings (char destino, char fuente)
+	strcpy(datos[i].fecha, cadena);     //función para copiar strings (char destino, char fuente)
 	return;	
 }
 
-void vaciar (char cadena[]){
-	for (int i = 0; i < 100; i++)
+void vaciar (char cadena[], int tam){
+	for (int i = 0; i < tam; i++)
 	{
 		cadena[i] = '\0';
 	}

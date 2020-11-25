@@ -38,21 +38,19 @@ void vaciar (char cadena[]);
 
 int main(void){
 
-	char temp[100], auxiliar;
+	char temp[292], auxiliar;
 	int cont = 0;
 	FILE *flujo;
-	flujo = fopen("archivo.txt", "r");
+	flujo = fopen("trabajadores.txt", "r");
 	if (flujo == NULL){
 		printf("No se ha podido abrir el fichero");
 		return 1;
 	}
-
-
 	
-	flujo = fopen("archivo.txt", "r");
+	flujo = fopen("trabajadores.txt", "r");
 	while (!feof(flujo))
 	{
-		fgets(temp, 100, flujo);
+		fgets(temp, 292, flujo);
 		cont++;
 	}
 	rewind(flujo);             //coloca el cursor del archivo que se encuentra en una posición x, al inicio del archivo
@@ -74,7 +72,7 @@ int main(void){
 		}
 		copiar(temp,i);		
 
-		fgets(temp, 100, flujo);
+		fgets(temp, 292, flujo);
 		trab[i].edad = atoi(temp);
 
 		printf("\nEl trabajador %s tiene %d anios.", trab[i].nombre, trab[i].edad);
@@ -98,8 +96,8 @@ void copiar (char cadena[], int i){
 	return;	
 }
 
-void vaciar (char cadena[]){
-	for (int i = 0; i < 100; i++)
+void vaciar (char cadena[]){	
+	for (int i = 0; i < 292; i++)
 	{
 		cadena[i] = '\0';
 	}

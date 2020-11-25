@@ -6,6 +6,8 @@
 #include <string.h>
 #include <stdint.h>
 
+#define linea 53
+
 typedef struct  
 {
 	int ciclo;
@@ -19,32 +21,38 @@ REGISTRO *datos;
 
 int lectura(FILE *flujo);
 void copiar (char cadena[], int i);
-void vaciar (char cadena[]);
+void vaciar (char cadena[], int tam);
+void cargar (char cadena[], int index);
 void valores_LCD();
-int finde(char *cadena);
 
-int main(void){
+void main(){
 
-	char temp[100];
 	int cont;
-	FILE *flujo;
-	lectura(flujo);
+	FILE *p_flujo;
+	
+	datos = (REGISTRO*)malloc(cont*sizeof(REGISTRO));
+	lectura(p_flujo);
 
 
 	short flag = 1;
-
+/*
 	while (flag == 1){							//Condición ciclica del programa
 		for (int j = 0; j < 28; j++){			//for para guardar datos en la matriz
 
 	/************************** Evaluo el estado de mi Temperatura*/
-
+/*
 		valores_LCD(&flag, j);
 			
 		}
-	}
-	//system("pause");
-	return 0;
+	}*/
+		printf("\nRegreso al main");
 
+	for (int i = 0; i < 8; i++)
+	{
+		printf("\nCiclo: %d  Temp: %.2f*c  Humd: %.2fr  Fecha: %s", datos[i].ciclo, datos[i].temp, datos[i].hum, datos[i].fecha);
+	}
+	
+	system("pause");
 }
 
 //strtof() transforma cadenas en float
@@ -52,66 +60,77 @@ int main(void){
 
 int lectura(FILE *flujo){
 
-	char temp[100], auxiliar;
-	int cont = 0;
+	char temp[linea], auxiliar;
+	int cont = 0, i = 0, indice = -12;
 	flujo = fopen("archivo.txt", "r");
 	if (flujo == NULL){
 		printf("No se ha podido abrir el fichero");
 		return 1;
 	}
 
-	flujo = fopen("archivo.txt", "r");
-	
-	while (finde(&temp) == 0)
+	vaciar(temp, linea);
+	while (auxiliar != ']')
 	{
-		fgets(temp, 100, flujo);
-		printf("%s", temp);
-	}
-	rewind(flujo);             //coloca el cursor del archivo que se encuentra en una posición x, al inicio del archivo
-	
-	datos = (REGISTRO*)malloc(cont*sizeof(REGISTRO));
-
-	for (int i = 0; !feof(flujo); i++)
-	{
-		vaciar(temp);
-		auxiliar = '0';
-		for (int j = 0; (auxiliar != '|'); j++)
+		while (auxiliar != '\n')
 		{
+			temp[i] = auxiliar;
+			printf("%c", auxiliar);
 			auxiliar = fgetc(flujo);
-			if (auxiliar != '|')
-			{
-				temp[j] = auxiliar;
-			} /*else if ((auxiliar == '=') && (auxiliar == ')') && (auxiliar == '('))
-			{
-				printf("%c", auxiliar);
-			}*/
-						
+			i ++;
 		}
-		copiar(temp,i);		
-
-		fgets(temp, 100, flujo);
-		datos[i].ciclo = atoi(temp);
-
-	}
+		indice ++;
+		cargar(temp, indice);
+		printf("\n");
+		i = 0;
+		auxiliar = fgetc(flujo);
+	}	
+		printf("fin de lectura");
 	fclose(flujo);
+	return;
 }
 
 
-int finde(char *cadena){
-	for (int i = 0; i < 150; i++)
+void cargar (char cadena[], int index){	
+	int cont = 0;
+	char auxiliar[20];
+	if ((index >=0) && (cadena[linea-1] != ']'))
 	{
-		if (cadena[i] == '#'){
-			if (cadena[i+1] == ')')
-			{
-				return 0;
-			}			
+		for (int i = 0; i < linea; i++)
+		{	
+			if ((cadena[i] == '.') && (cont == 0)){
+				datos[index].ciclo = index;
+				cont ++;			
+			} else if ((cadena[i] == '.') && (cont == 1)){
+				auxiliar[0] = cadena[i-2]; 
+				auxiliar[1] = cadena[i-1]; 
+				auxiliar[2] = cadena[i]; 
+				auxiliar[3] = cadena[i+1]; 
+				datos[index].temp = strtod(auxiliar, NULL);			//convierto y almaceno
+				vaciar(auxiliar, 4);
+				cont ++;
+			} else if ((cadena[i] == '.') && (cont == 2)){
+				auxiliar[0] = cadena[i-2]; 
+				auxiliar[1] = cadena[i-1]; 
+				auxiliar[2] = cadena[i]; 
+				auxiliar[3] = cadena[i+1]; 
+				datos[index].hum = strtod(auxiliar, NULL);		//convierto y almaceno
+				vaciar(auxiliar, 4);
+				cont ++;
+			} else if ((cadena[i] == ':') && (cont == 3)){
+				for (int j = 0; j < 19; j++)
+				{
+					auxiliar[j] = cadena[(linea - 19) + j];			// (linea - 19)   =   33
+				}
+				copiar(auxiliar, index);
+				vaciar(auxiliar, 19);
+				cont = 0;
+			}
 		}
 	}
-	return 1;
 }
 
 void copiar (char cadena[], int i){
-	int N = strlen(cadena) + 1;
+	int N = strlen(cadena) + 1;						//tamaño de caracteres + el '\n'
 	datos[i].fecha = (REGISTRO*)malloc(N*sizeof(char));
 	if (datos[i].fecha == NULL)
 	{
@@ -122,8 +141,8 @@ void copiar (char cadena[], int i){
 	return;	
 }
 
-void vaciar (char cadena[]){
-	for (int i = 0; i < 100; i++)
+void vaciar (char cadena[], int tam){
+	for (int i = 0; i < tam; i++)
 	{
 		cadena[i] = '\0';
 	}
